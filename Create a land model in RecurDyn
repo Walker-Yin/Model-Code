@@ -1,0 +1,106 @@
+#include "stdafx.h"
+#include "DllFunc.h"
+#include <math.h>
+__declspec(dllexport) void __cdecl track_soil_force
+(double time, int info[], double upar[], int npar, double dird[], double dirv[],
+double disp[], double lgori[], double ngpos[], double ngori[], double ngvel[],
+double length, double width, int iflag, double result[3])
+{
+	using namespace rd_syscall;
+	// 参数含义
+	// time    :  Simulation time of RD/Solver
+	// info    :  ID of body & node
+	// upar    :  parameters defined by user
+	// npar    :  Number of user parameters
+	// dird    :  Direction vector of ground patch
+	// dirv    :  Velocity of a contact node relative to direction vector 
+	// disp    :  Sinkage & shear displacements
+	// lgori   :  Global orientation of a track link
+	// ngpos   :  Global position of a contact node
+	// ngori   :  Gloabal orientation of a contact node
+	// ngvel   :  Gloabal velocity of a contact node
+	// length  :  Length of meshed rectangle at a track link
+	// width   :  Width of meshed rectangle at a track link
+	// iflag   :  When RD/Solver initializes arraies, the flag is true(-1).
+	// result  :  Returned force value[3]
+
+	int body_id, node_id, i;
+	double k_c, k_phi, n, cohesion, phi, w_k, r_k, area, pre_max, z, z_max, pre,
+		force, sgx, sgz, pre_sx, pre_sz, delta_sx, delta_sz, force_x, force_z,
+		u_x[3], u_y[3], u_z[3], vel_x, vel_y, vel_z, ku, ratio_zmax, ratio_n;
+	const double pi = 3.14159265;
+	double exp(double n);
+	body_id = info[0];
+	node_id = info[1];
+
+	//--- 方向矢量及速度定义
+	for (i = 0; i < 3; i++) {
+		u_x[i] = dird[i];
+		u_y[i] = dird[3 + i];
+		u_z[i] = dird[6 + i];
+	}
+	vel_x = dirv[0];
+	vel_y = dirv[1];
+	vel_z = dirv[2];
+
+	//--- 压力——沉陷关系描述
+	z = disp[0];
+	delta_sx = disp[1];
+	delta_sz = disp[2];
+	z_max = disp[3];
+
+	//--- 土壤参数
+	k_c = 0.05123;
+	k_phi = 0.002438;
+	n = 0.56;
+	cohesion = 4e-3;
+	phi = 5 * pi / 180.0;
+	w_k = 35;
+	r_k = 0.28;
+
+	ratio_n = fabs(ngori[3] * u_y[0] + ngori[4] * u_y[1] + ngori[5] * u_y[2]);
+	area = length*width*ratio_n;
+	ratio_zmax = 0.01;
+	if ((z >= 0.0) && (z >= z_max)) {
+		pre = (k_c / width + k_phi) *pow(z, n);
+	}
+	else if ((z >= 0.0) && (z < z_max) && (z >= (z_max*(1.0 - ratio_zmax)))) {
+		pre_max = (k_c / width + k_phi) * pow(z_max, n);
+		ku = pre_max / (z_max*ratio_zmax);
+		pre = pre_max - ku*(z_max - z);
+	}
+	else
+	{
+		pre = 0.0;
+	}
+	force = pre * area;
+	for (i = 0; i < 3; i++)
+	{
+		result[i] = force * u_y[i];
+	}
+
+	//--- 2. 剪切应力——剪切位移关系描述
+	if (vel_x >= 0.0) { sgx = -1.0; }
+	else 	{ sgx = 1.0; }
+	if (vel_z >= 0.0) { sgz = -1.0; }
+	else 	{ sgz = 1.0; }
+
+	//纵向力计算
+	pre_sx = (cohesion + pre*tan(phi))*r_k*(1.0 + (1 / (r_k*(1 - exp(-1))) - 1)
+		*exp(1 - delta_sx / w_k))*(1.0 - exp(-delta_sx / w_k));
+	area = length*width*ratio_n;
+	force_x = pre_sx * area;
+	for (i = 0; i < 3; i++)
+	{
+		result[i] = result[i] + fabs(force_x)*sgx*u_x[i];
+	}
+	//横向力计算
+	pre_sz = (cohesion + pre*tan(phi))*r_k*(1.0 + (1 / (r_k*(1 - exp(-1))) - 1)
+		*exp(1 - delta_sz / w_k))*(1.0 - exp(-delta_sz / w_k));
+	area = length*width*ratio_n;
+	force_z = pre_sz * area;
+	for (i = 0; i < 3; i++)
+	{
+		result[i] = result[i] + fabs(force_z)*sgz*u_z[i];
+	}
+}
