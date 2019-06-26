@@ -1,0 +1,151 @@
+public void CreateRigidPipe()
+        {
+            double[] CylinderStartPoint = { 0, 0, 0 };
+            double[] CylinderEndPoint = { 0, -10000, 0 };
+            double[] CylinderInterval = { 0, -10000, 0 };
+            double Radius = 219;
+            double radius = 219 - 2 * 12.7;
+            //IMaterialProperty UserMaterial = modelDocument.CreateMaterialProperty("UserMaterial", 2.3294e-6, 2.07e5, 0.29);
+            for (int i = 1; i <= 45; i++)
+            {
+                IBody cylinder = model.CreateBodyGeneral("RigidPipe_" + i.ToString());
+                IGeometryCylinder A = cylinder.CreateCylinderGeometryWithPointPointRadius("Cylinder_1", CylinderStartPoint, CylinderEndPoint, Radius);
+                IGeometryCylinder B = cylinder.CreateCylinderGeometryWithPointPointRadius("Cylinder_2", CylinderStartPoint, CylinderEndPoint, radius);
+                IGeometry C = cylinder.BooleanGeometry(BooleanType.Subtract, "pipe", A, B);
+                //cylinder.MaterialInput = MaterialInput.UserMaterial;
+                //cylinder.MaterialUser = UserMaterial;
+                //IMaterialProperty MaterialProperty = cylinder.MaterialUser;
+                for (int j = 0; j < CylinderStartPoint.Length; j++)
+                {
+                    CylinderStartPoint[j] = CylinderStartPoint[j] + CylinderInterval[j];
+                    CylinderEndPoint[j] = CylinderEndPoint[j] + CylinderInterval[j];
+                }
+            }
+        }
+
+        public void InputMaterialProperty()
+        {
+            IMaterialProperty UserMaterial = modelDocument.CreateMaterialProperty("UserMaterial", 2.3294e-6, 2.07e5, 0.29);
+            for (int i = 1; i < 90; i++)
+            {
+                
+                IBody Entity = model.GetEntity("Cylinder" + i.ToString()) as IBody;
+                Entity.MaterialInput = MaterialInput.UserMaterial;
+                Entity.MaterialUser = UserMaterial;
+                IMaterialProperty MaterialProperty = Entity.MaterialUser;
+            }
+
+        
+        }
+        public void CreateRigidPipeBushing()
+        {
+            for (int i = 1; i < 45; i++)
+            {
+                int j = i + 1;
+                refFrame1 = modelDocument.CreateReferenceFrame();
+                refFrame1.SetOrigin(0, -10000 * i, 0);
+                IBody baseBody = model.GetEntity("RigidPipe_" + i.ToString()) as IBody;
+                IBody actionBody = model.GetEntity("RigidPipe_" + j.ToString()) as IBody;
+                IForceBushing bushingforce = model.CreateForceBushing("Bushing" + i.ToString(), baseBody, actionBody, refFrame1);
+                bushingforce.TranslationalStiffnessX.Coefficient.Value = 1.1e5;
+                bushingforce.TranslationalStiffnessY.Coefficient.Value = 1.7e8;
+                bushingforce.TranslationalStiffnessZ.Coefficient.Value = 1.1e5;
+                bushingforce.TranslationalDampingX.Coefficient.Value = 2.5e6;
+                bushingforce.TranslationalDampingY.Coefficient.Value = 4e7;
+                bushingforce.TranslationalDampingZ.Coefficient.Value = 2.5e6;
+                bushingforce.RotationalStiffnessX.Coefficient.Value = 9.1e5;
+                bushingforce.RotationalStiffnessY.Coefficient.Value = 7.1e5;
+                bushingforce.RotationalStiffnessZ.Coefficient.Value = 9.1e5;
+                bushingforce.RotationalDampingX.Coefficient.Value = 2e5;
+                bushingforce.RotationalDampingY.Coefficient.Value = 1e5;
+                bushingforce.RotationalDampingZ.Coefficient.Value = 2e5;
+            }
+        }
+
+        public void CreateRigidTranForce()
+        {
+            for (int i = 1; i <= 45; i++)
+            {
+                int k = i - 1;
+                int m = -5000 - 10000 * k;
+                refFrame1 = modelDocument.CreateReferenceFrame();
+                refFrame1.SetOrigin(0, m, 0);
+                refFrame2 = modelDocument.CreateReferenceFrame();
+                refFrame2.SetOrigin(500, m, 0);
+                IBody actionForceBody = model.GetEntity("RigidPipe_" + i.ToString()) as IBody;
+                IForceTranslational TranslationalForce = model.CreateForceTranslationalEx("TranslationalForce" + i.ToString(), actionForceBody, model.Ground, refFrame1, refFrame2);
+                String nameExpression = "IForceTranslationalEx" + i.ToString();
+                IExpression expression = model.CreateExpression(nameExpression, "1.2*1037*0.11*10*(-0.15-0.622*(((1000+DY(RigidPipe_1.CM)/1000)/1000)**12)-VX(RigidPipe_1.CM)/1000)*ABS(-0.15-0.622*(((1000+DY(RigidPipe_1.CM)/1000)/1000)**12)-VX(RigidPipe_1.CM)/1000)");
+                TranslationalForce.ExpressionFX = expression;
+                Assert.AreEqual(nameExpression, TranslationalForce.ExpressionFX.Name);
+            }
+        }
+
+        public void CreateFlexiblePipe()
+        {
+            double[] CylinderStartPoint = { 0, 0, 0 };
+            double[] CylinderEndPoint = { 0, -2000, 0 };
+            double[] CylinderInterval = { 0, -2000, 0 };
+            double Radius = 205;
+            double radius = 150;
+            IMaterialProperty UserMaterial = modelDocument.CreateMaterialProperty("UserMaterial", 9.545e-7, 2.32e3, 0.4);
+            for (int i = 1; i <= 200; i++)
+            {
+                IBody cylinder = model.CreateBodyGeneral("FlexiblePipe_" + i.ToString());
+                IGeometryCylinder A = cylinder.CreateCylinderGeometryWithPointPointRadius("Cylinder1", CylinderStartPoint, CylinderEndPoint, Radius);
+                IGeometryCylinder B = cylinder.CreateCylinderGeometryWithPointPointRadius("Cylinder2", CylinderStartPoint, CylinderEndPoint, radius);
+                IGeometry C = cylinder.BooleanGeometry(BooleanType.Subtract, "pipe", A, B);
+                cylinder.MaterialInput = MaterialInput.UserMaterial;
+                cylinder.MaterialUser = UserMaterial;
+                IMaterialProperty MaterialProperty = cylinder.MaterialUser;
+                for (int j = 0; j < CylinderStartPoint.Length; j++)
+                {
+                    CylinderStartPoint[j] = CylinderStartPoint[j] + CylinderInterval[j];
+                    CylinderEndPoint[j] = CylinderEndPoint[j] + CylinderInterval[j];
+                }
+            }
+        }
+
+        public void CreateFlexiblePipeBushing()
+        {
+            for (int i = 1; i < 200; i++)
+            {
+                int j = i + 1;
+                refFrame1 = modelDocument.CreateReferenceFrame();
+                refFrame1.SetOrigin(0, -2000 * i, 0);
+                IBody baseBody = model.GetEntity("FlexiblePipe_" + i.ToString()) as IBody;
+                IBody actionBody = model.GetEntity("FlexiblePipe_" + j.ToString()) as IBody;
+                IForceBushing bushingforce = model.CreateForceBushing("Bushing" + i.ToString(), baseBody, actionBody, refFrame1);
+                bushingforce.TranslationalStiffnessX.Coefficient.Value = 2.2e5;
+                bushingforce.TranslationalStiffnessY.Coefficient.Value = 1.8e8;
+                bushingforce.TranslationalStiffnessZ.Coefficient.Value = 2.2e5;
+                bushingforce.TranslationalDampingX.Coefficient.Value = 2.5e4;
+                bushingforce.TranslationalDampingY.Coefficient.Value = 4e3;
+                bushingforce.TranslationalDampingZ.Coefficient.Value = 2.5e4;
+                bushingforce.RotationalStiffnessX.Coefficient.Value = 7.2e4;
+                bushingforce.RotationalStiffnessY.Coefficient.Value = 5.1e4;
+                bushingforce.RotationalStiffnessZ.Coefficient.Value = 7.2e4;
+                bushingforce.RotationalDampingX.Coefficient.Value = 2.2e4;
+                bushingforce.RotationalDampingY.Coefficient.Value = 1.2e3;
+                bushingforce.RotationalDampingZ.Coefficient.Value = 2.2e4;
+            }
+        }
+
+        public void CreateFlexiblePipeTranForce()
+        {
+            for (int i = 1; i <= 200; i++)
+            {
+                int k = i - 1;
+                int m = -1000 - 2000 * k;
+                refFrame1 = modelDocument.CreateReferenceFrame();
+                refFrame1.SetOrigin(0, m, 0);
+                refFrame2 = modelDocument.CreateReferenceFrame();
+                refFrame2.SetOrigin(500, m, 0);
+                IBody actionForceBody = model.GetEntity("FlexiblePipe_" + i.ToString()) as IBody;
+                IForceTranslational TranslationalForce = model.CreateForceTranslationalEx("TranslationalForce" + i.ToString(), actionForceBody, model.Ground, refFrame1, refFrame2);
+                String nameExpression = "IForceTranslationalEx" + i.ToString();
+                IExpression expression = model.CreateExpression(nameExpression, "1.2*1037*0.11*3*(-0.15-0.622*(((1000+DY(FlexiblePipe_1.CM)/1000)/1000)**12)-VX(FlexiblePipe_1.CM)/1000)*ABS(-0.15-0.622*(((1000+DY(FlexiblePipe_1.CM)/1000)/1000)**12)-VX(FlexiblePipe_1.CM)/1000)");
+                TranslationalForce.ExpressionFX = expression;
+                Assert.AreEqual(nameExpression, TranslationalForce.ExpressionFX.Name);
+            }
+        }
